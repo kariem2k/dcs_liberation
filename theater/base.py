@@ -160,7 +160,8 @@ class Base:
             if target_array[unit_type] == 0:
                 del target_array[unit_type]
 
-        # now that we have a complete picture of the SAM sites destroyed, determine if any were destroyed
+        # now that we have a complete picture of the SAM site components destroyed,
+        #  determine if any complete sites were destroyed
         for sam_site, count in sams_destroyed.items():
             dead_count = aaa.num_sam_dead(sam_site, count)
             try:

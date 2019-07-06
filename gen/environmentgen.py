@@ -131,7 +131,7 @@ class EnviromentGenerator:
             # frontline smokes look silly w/o any wind
             self._generate_wind(1)
 
-    def generate(self) -> EnvironmentSettings:
+    def generate_and_set(self) -> EnvironmentSettings:
         self._gen_random_time()
         self._gen_random_weather()
 

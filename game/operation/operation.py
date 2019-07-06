@@ -146,7 +146,7 @@ class Operation:
 
         # env settings
         if self.environment_settings is None:
-            self.environment_settings = self.envgen.generate()
+            self.environment_settings = self.envgen.generate_and_set()
         else:
             self.envgen.load(self.environment_settings)
 

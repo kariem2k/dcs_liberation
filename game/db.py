@@ -487,8 +487,8 @@ def unit_task(unit: UnitType) -> Task:
     for task, units in UNIT_BY_TASK.items():
         if unit in units:
             return task
-        elif unit in SAM_CONVERT:
-            return SAM_CONVERT[unit]
+    if unit in SAM_CONVERT:
+        return UNIT_BY_TASK[SAM_CONVERT[unit]]
     assert False
 
 

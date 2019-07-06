@@ -11,6 +11,7 @@ from userdata.debriefing import Debriefing
 from theater import *
 
 from . import db
+import time
 from .settings import Settings
 from .event import *
 
@@ -240,10 +241,17 @@ class Game:
 
     def initiate_event(self, event: Event):
         assert event in self.events
-
+        # create a pre-seeded random object so that the quick mission does not deviate from the normal
+        # note that this object is opt-in and should not be used for all random calls
+        s_rand_seed = time.time()
+        s_rand = random.Random()
+        s_rand.seed(s_rand_seed)
         logging.info("Generating {} (regular)".format(event))
+        self.settings.s_rand = s_rand
         event.generate()
         logging.info("Generating {} (quick)".format(event))
+        # reset the random object so we get the same values
+        self.settings.s_rand.seed(s_rand_seed)
         event.generate_quick()
 
     def finish_event(self, event: Event, debriefing: Debriefing):

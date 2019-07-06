@@ -82,13 +82,17 @@ class GroundObjectsGenerator:
 
                 if ground_object.group_id not in consumed_farps:
                     consumed_farps.add(ground_object.group_id)
-                    if random.randint(0, 100) > 50:
-                        farp_aa(
-                            self.m,
-                            side,
-                            ground_object.string_identifier,
-                            ground_object.position,
-                        )
+                    try:
+                        if self.game.settings.s_rand.randint(0, 100) > 50:
+                            farp_aa(
+                                self.m,
+                                side,
+                                ground_object.string_identifier,
+                                ground_object.position,
+                                self.game.settings.s_rand,
+                            )
+                    except Exception:
+                        logging.warn("Attempted to reference custom seeded object but could not find it")
 
                 group = self.m.static_group(
                     country=side,
@@ -102,7 +106,7 @@ class GroundObjectsGenerator:
                 logging.info("generated {}object identifier {} with mission id {}".format("dead " if ground_object.is_dead else "", group.name, group.id))
 
 
-def farp_aa(mission_obj, country, name, position: mapping.Point):
+def farp_aa(mission_obj, country, name, position: mapping.Point, rand_obj=None):
     """
     Add AAA to a FARP :)
     :param mission_obj:
@@ -119,7 +123,11 @@ def farp_aa(mission_obj, country, name, position: mapping.Point):
         Armor.MBT_T_55,
     ]
 
-    v = mission_obj.vehicle(name + "_AAA", random.choice(units))
+    if not rand_obj:
+        v = mission_obj.vehicle(name + "_AAA", random.choice(units))
+    else:
+        v = mission_obj.vehicle(name + "_AAA", rand_obj.choice(units))
+    print("Chose {}".format(v.type))
     v.position.x = position.x - random.randint(5, 30)
     v.position.y = position.y - random.randint(5, 30)
     v.heading = random.randint(0, 359)
