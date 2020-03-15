@@ -107,7 +107,7 @@ class EnviromentGenerator:
             # rain
             self.mission.weather.clouds_iprecptns = Weather.Preceptions.Rain
 
-    def generate(self) -> EnvironmentSettings:
+    def generate_and_set(self) -> EnvironmentSettings:
         self._gen_random_time()
         self._gen_random_weather()
 

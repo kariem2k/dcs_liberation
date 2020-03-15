@@ -83,6 +83,7 @@ class Operation:
         with open("resources/default_options.lua", "r") as f:
             options_dict = loads(f.read())["options"]
 
+        dcs.Mission.aaa_vehicle_group = aaa.aaa_vehicle_group
         self.current_mission = dcs.Mission(terrain)
         if is_quick:
             self.quick_mission = self.current_mission
@@ -146,7 +147,7 @@ class Operation:
 
         # env settings
         if self.environment_settings is None:
-            self.environment_settings = self.envgen.generate()
+            self.environment_settings = self.envgen.generate_and_set()
         else:
             self.envgen.load(self.environment_settings)
 

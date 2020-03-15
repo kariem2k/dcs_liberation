@@ -23,7 +23,8 @@ REGROUP_ALT = 5000
 
 TRIGGER_WAYPOINT_OFFSET = 2
 TRIGGER_MIN_DISTANCE_FROM_START = 10000
-TRIGGER_RADIUS_MINIMUM = 20000
+# modified since we now have advanced SAM units
+TRIGGER_RADIUS_MINIMUM = 3000000
 
 TRIGGER_RADIUS_SMALL = 50000
 TRIGGER_RADIUS_MEDIUM = 100000
@@ -42,29 +43,38 @@ class TriggersGenerator:
         self.game = game
 
     def _gen_activation_trigger(self, radius: int, player_cp: ControlPoint, player_coalition: str, enemy_coalition: str):
+        conflict_distance = player_cp.position.distance_to_point(self.conflict.position)
+        minimum_radius = max(conflict_distance - TRIGGER_MIN_DISTANCE_FROM_START, TRIGGER_RADIUS_MINIMUM)
+        if minimum_radius < 0:
+            minimum_radius = 0
+        radius = min(minimum_radius, radius)
+        activation_trigger_zone = self.mission.triggers.add_triggerzone(
+            self.conflict.position,
+            radius,
+            name="Activation zone",
+        )
+        activation_trigger = TriggerOnce(Event.NoEvent, "Activation trigger")
+        activation_trigger.add_condition(PartOfCoalitionInZone(player_coalition, activation_trigger_zone.id))
+        activation_trigger.add_condition(FlagIsTrue())
         activate_by_trigger = []
+        flag_id = 2
         for coalition_name, coalition in self.mission.coalition.items():
             for country in coalition.countries.values():
                 if coalition_name == enemy_coalition:
                     for plane_group in country.plane_group + country.helicopter_group:
                         plane_group.late_activation = True
-                        activate_by_trigger.append(plane_group)
+                        self.delayed_trigger(
+                            plane_group,
+                            flag_id,
+                            flag_lower_limit=180,
+                            flag_upper_limit=2400,
+                        )
+                        flag_id += 1
 
                 for vehicle_group in country.vehicle_group:
                     vehicle_group.late_activation = True
                     activate_by_trigger.append(vehicle_group)
 
-        conflict_distance = player_cp.position.distance_to_point(self.conflict.position)
-        minimum_radius = max(conflict_distance - TRIGGER_MIN_DISTANCE_FROM_START, TRIGGER_RADIUS_MINIMUM)
-        if minimum_radius < 0:
-            minimum_radius = 0
-
-        radius = min(minimum_radius, radius)
-
-        activation_trigger_zone = self.mission.triggers.add_triggerzone(self.conflict.position, radius, name="Activation zone")
-        activation_trigger = TriggerOnce(Event.NoEvent, "Activation trigger")
-        activation_trigger.add_condition(PartOfCoalitionInZone(player_coalition, activation_trigger_zone.id))
-        activation_trigger.add_condition(FlagIsTrue())
         for group in activate_by_trigger:
             activation_trigger.add_action(ActivateGroup(group.id))
 
@@ -142,6 +152,39 @@ class TriggersGenerator:
 
                 for vehicle_group in country.vehicle_group:
                     vehicle_group.set_skill(Skill(skill_level[1]))
+
+    def delayed_trigger(self, group, flag_id, flag_lower_limit, flag_upper_limit):
+        """
+        Create an activation trigger a randomized amount after the main activation occurs
+        :param group:
+            group to activate
+        :param flag_id:
+            ID of the flag to use
+        :param flag_lower_limit:
+            lower limit of what the random time can be (shouldn't be negative)
+        :param flag_upper_limit:
+            uopper limit of what the random time can be
+        :return:
+            N/A
+        """
+        trigger_one = TriggerOnce(Event.NoEvent, "Activation trigger")
+        trigger_one.add_condition(FlagEquals(1, 1))
+        trigger_one.add_action(SetFlagValue(flag_id, 1))
+
+        trigger_two = TriggerCondition()
+        trigger_two.add_condition(
+            TimeSinceFlag(
+                flag_id,
+                seconds=random.randint(
+                    flag_lower_limit,
+                    flag_upper_limit
+                )
+            )
+        )
+        trigger_two.add_action(ActivateGroup(group.id))
+
+        self.mission.triggerrules.triggers.append(trigger_one)
+        self.mission.triggerrules.triggers.append(trigger_two)
 
     def generate(self, player_cp: ControlPoint, is_quick: bool, activation_trigger_radius: int, awacs_enabled: bool):
         player_coalition = self.game.player == "USA" and "blue" or "red"

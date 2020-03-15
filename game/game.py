@@ -11,6 +11,7 @@ from userdata.debriefing import Debriefing
 from theater import *
 
 from . import db
+import time
 from .settings import Settings
 from .event import *
 
@@ -20,7 +21,7 @@ COMMISION_LIMITS_FACTORS = {
     PinpointStrike: 10,
     CAS: 5,
     CAP: 8,
-    AirDefence: 1,
+    AirDefence: 8,
 }
 
 COMMISION_AMOUNTS_SCALE = 1.5
@@ -28,7 +29,7 @@ COMMISION_AMOUNTS_FACTORS = {
     PinpointStrike: 3,
     CAS: 1,
     CAP: 2,
-    AirDefence: 0.3,
+    AirDefence: 0.8,
 }
 
 PLAYER_INTERCEPT_GLOBAL_PROBABILITY_BASE = 30
@@ -187,7 +188,7 @@ class Game:
                     if event_class is BaseAttackEvent:
                         base_attack_generated_for.add(enemy_cp)
 
-                if enemy_probability == 100 or  enemy_probability > 0 and self._roll(enemy_probability, enemy_cp.base.strength):
+                if enemy_probability == 100 or enemy_probability > 0 and self._roll(enemy_probability, enemy_cp.base.strength):
                     self._generate_enemy_event(event_class, player_cp, enemy_cp)
 
     def commision_unit_types(self, cp: ControlPoint, for_task: Task) -> typing.Collection[UnitType]:
@@ -240,10 +241,17 @@ class Game:
 
     def initiate_event(self, event: Event):
         assert event in self.events
-
+        # create a pre-seeded random object so that the quick mission does not deviate from the normal
+        # note that this object is opt-in and should not be used for all random calls
+        s_rand_seed = time.time()
+        s_rand = random.Random()
+        s_rand.seed(s_rand_seed)
         logging.info("Generating {} (regular)".format(event))
+        self.settings.s_rand = s_rand
         event.generate()
         logging.info("Generating {} (quick)".format(event))
+        # reset the random object so we get the same values
+        self.settings.s_rand.seed(s_rand_seed)
         event.generate_quick()
 
     def finish_event(self, event: Event, debriefing: Debriefing):
@@ -273,12 +281,11 @@ class Game:
             else:
                 event.skip()
 
+        for cp in self.theater.enemy_points():
+            self._commision_units(cp)
+        self._budget_player()
+
         if not no_action:
-            self._budget_player()
-
-            for cp in self.theater.enemy_points():
-                self._commision_units(cp)
-
             for cp in self.theater.player_points():
                 cp.base.affect_strength(+PLAYER_BASE_STRENGTH_RECOVERY)
 
